@@ -7,9 +7,11 @@
 <style>
 *{box-sizing:border-box}
 body{font-family:system-ui,sans-serif;margin:0;background:#f3f4f6;color:#111}
-header{background:#2563eb;color:#fff;padding:12px 16px;position:sticky;top:0;z-index:5}
-header h1{margin:0;font-size:1.2rem}
-main{max-width:800px;margin:0 auto;padding:12px}
+header{background:#2563eb;color:#fff;padding:10px 16px;position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+header h1{margin:0;font-size:1.2rem;flex:1}
+header button{width:auto;padding:6px 10px;background:#ffffff33}
+#sst{font-size:.75rem;opacity:.9}
+main{max-width:800px;margin:0 auto;padding:12px 12px 90px}
 .card{background:#fff;border-radius:10px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row>*{flex:1;min-width:120px}
@@ -19,25 +21,33 @@ button{cursor:pointer;background:#2563eb;color:#fff;border:0}
 button.sec{background:#e5e7eb;color:#111}
 button.del{background:#dc2626}
 button.ok{background:#16a34a}
-.fab{position:fixed;right:16px;bottom:16px;width:auto;border-radius:30px;padding:14px 20px;box-shadow:0 2px 8px #0005;z-index:6}
+.fabs{position:fixed;right:12px;bottom:12px;display:flex;gap:8px;z-index:6}
+.fabs button{width:auto;border-radius:30px;padding:14px 18px;box-shadow:0 2px 8px #0005}
 .item{display:flex;gap:10px;align-items:flex-start;border-top:1px solid #eee;padding:10px 0}
 .item:first-child{border-top:0}
 .item img{width:56px;height:56px;object-fit:cover;border-radius:6px;cursor:pointer}
 .info{flex:1}
-.amt{font-weight:700;white-space:nowrap}
+.amt{font-weight:700;white-space:nowrap;text-align:right}
 .tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:10px;background:#e5e7eb}
 .pend{background:#fee2e2;color:#991b1b}.paid{background:#dcfce7;color:#166534}
-.totals{display:flex;gap:8px;text-align:center}
-.totals div{flex:1;background:#f9fafb;border-radius:8px;padding:8px}
-.totals b{display:block;font-size:1.1rem}
+.totals{display:flex;gap:8px;text-align:center;flex-wrap:wrap}
+.totals div{flex:1;min-width:95px;background:#f9fafb;border-radius:8px;padding:8px;font-size:.85rem}
+.totals b{display:block;font-size:1.05rem}
 dialog{border:0;border-radius:12px;width:min(520px,95vw);padding:16px}
 dialog::backdrop{background:#0008}
 .small{font-size:.8rem;color:#666}
-@media print{header,.fab,.noprint{display:none!important}}
+.err{color:#b91c1c;font-size:.85rem;min-height:1.1em}
+@media print{header,.fabs,.noprint{display:none!important}}
 </style>
 </head>
 <body>
-<header><h1>Gastos a cobrar</h1></header>
+<header>
+  <h1>Gastos a cobrar</h1>
+  <span id="sst"></span>
+  <button id="bSync">Sincronizar</button>
+  <button id="bCfg">Gist</button>
+  <button id="bLock">Bloquear</button>
+</header>
 <main>
   <div class="card noprint">
     <div class="row">
@@ -48,20 +58,25 @@ dialog::backdrop{background:#0008}
     </div>
   </div>
 
-  <div class="card totals">
-    <div>Total a cobrar<b id="tTotal">0</b></div>
-    <div>Cobrado<b id="tPaid">0</b></div>
-    <div>Pendiente<b id="tPend">0</b></div>
+  <div class="card">
+    <div class="totals">
+      <div>A cobrar<b id="tTotal">0</b></div>
+      <div>Marcado cobrado<b id="tPaid">0</b></div>
+      <div>Pendiente<b id="tPend">0</b></div>
+      <div>Ingresos<b id="tIng">0</b></div>
+      <div>Saldo<b id="tSaldo">0</b></div>
+    </div>
+    <p class="small" style="margin-bottom:0">Saldo = pendiente − ingresos (negativo = pagado de más). Saldo global sin filtros: <b id="tGlobal"></b></p>
   </div>
 
   <div class="card"><b>Por tipo</b><div id="porTipo"></div></div>
   <div class="card"><b>Por mes</b><div id="porMes"></div></div>
-
   <div class="card"><b>Gastos</b><div id="lista"></div></div>
+  <div class="card"><b>Ingresos</b><div id="listaIng"></div></div>
 
   <div class="card noprint">
     <b>Compartir informe</b>
-    <p class="small">Usa los filtros de arriba (mes, tipo, estado) para elegir qué incluir. Desde el móvil, "Compartir" puede enviar también las fotos.</p>
+    <p class="small">Usa los filtros de arriba para elegir qué incluir. Desde el móvil, "Compartir" puede enviar también las fotos. El informe sale sin cifrar.</p>
     <div class="row">
       <button id="bShare">Compartir…</button>
       <button id="bWa" class="ok">WhatsApp</button>
@@ -71,8 +86,7 @@ dialog::backdrop{background:#0008}
     </div>
   </div>
   <div class="card noprint">
-    <b>Copia de seguridad</b>
-    <p class="small">Los datos se guardan solo en este dispositivo.</p>
+    <b>Copia de seguridad (cifrada)</b>
     <div class="row">
       <button id="bExport" class="sec">Exportar copia</button>
       <button id="bImport" class="sec">Importar copia</button>
@@ -80,7 +94,30 @@ dialog::backdrop{background:#0008}
     </div>
   </div>
 </main>
-<button class="fab" id="bNew">+ Nuevo gasto</button>
+<div class="fabs"><button class="sec" id="bNewI">+ Ingreso</button><button id="bNew">+ Gasto</button></div>
+
+<dialog id="unlock">
+  <h3>Desbloquear</h3>
+  <p class="small">Los datos se cifran con esta contraseña (AES-256). Si la pierdes no se pueden recuperar.</p>
+  <label>Contraseña</label><input type="password" id="uPass" autocomplete="current-password">
+  <div id="uGistBox">
+    <details style="margin:10px 0"><summary>Sincronizar con un Gist (opcional)</summary>
+      <p class="small">Token de GitHub (clásico, solo permiso <i>gist</i>). Deja el ID vacío para crear un gist nuevo; en otro dispositivo, pon el ID del gist y usa la misma contraseña.</p>
+      <label>Token</label><input type="password" id="uTok" autocomplete="off">
+      <label>ID del gist</label><input id="uGist" autocomplete="off">
+    </details>
+  </div>
+  <div class="err" id="uErr"></div>
+  <button id="uGo">Entrar</button>
+</dialog>
+
+<dialog id="cfgDlg">
+  <h3>Sincronización con Gist</h3>
+  <label>Token</label><input type="password" id="cTok" autocomplete="off" placeholder="(sin cambios si se deja vacío)">
+  <label>ID del gist</label><input id="cGist" autocomplete="off" placeholder="vacío = crear uno nuevo">
+  <p class="small">Los datos y adjuntos se suben ya cifrados; en GitHub no se puede leer nada.</p>
+  <div class="row"><button class="sec" id="cCancel">Cancelar</button><button class="del" id="cOff">Desconectar</button><button id="cSave">Guardar</button></div>
+</dialog>
 
 <dialog id="dlg">
   <form id="form" method="dialog">
@@ -102,7 +139,21 @@ dialog::backdrop{background:#0008}
     <div class="row">
       <button type="button" class="sec" id="dCancel">Cancelar</button>
       <button type="button" class="del" id="dDel">Eliminar</button>
-      <button type="submit" id="dSave">Guardar</button>
+      <button type="submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="idlg">
+  <form id="iform" method="dialog">
+    <h3 id="iTitle">Nuevo ingreso</h3>
+    <div class="row"><div><label>Fecha</label><input type="date" id="idate" required></div>
+      <div><label>Importe (€)</label><input type="number" step="0.01" min="0.01" id="iamt" required></div></div>
+    <div style="margin:8px 0"><label>Nota</label><input id="idesc" placeholder="Ej. Bizum"></div>
+    <div class="row">
+      <button type="button" class="sec" id="iCancel">Cancelar</button>
+      <button type="button" class="del" id="iDel">Eliminar</button>
+      <button type="submit">Guardar</button>
     </div>
   </form>
 </dialog>
@@ -114,84 +165,238 @@ const TIPOS=['Medicamentos','Comida','Transporte','Ropa','Salud','Otros'];
 const $=id=>document.getElementById(id);
 const eur=n=>(+n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
 
-// IndexedDB
+// ---------- Cifrado ----------
+let key=null,token='',cfg=null;
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function derive(pass,salt){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(salt),iterations:310000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function enc(o){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(o))));
+  return b64(iv)+'.'+b64(ct);
+}
+async function dec(s){
+  const [a,b]=s.trim().split('.');
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(a)},key,unb64(b))));
+}
+const saveCfg=()=>localStorage.setItem('gastosCfg',JSON.stringify(cfg));
+
+// ---------- Almacenamiento local (cifrado) ----------
 let db;
-const open=indexedDB.open('gastos',1);
-open.onupgradeneeded=()=>open.result.createObjectStore('g',{keyPath:'id',autoIncrement:true});
-const store=m=>db.transaction('g',m).objectStore('g');
+const data=new Map();
+function openDb(){return new Promise((res,rej)=>{
+  const o=indexedDB.open('gastos2',1);
+  o.onupgradeneeded=()=>o.result.createObjectStore('r',{keyPath:'id'});
+  o.onsuccess=()=>{db=o.result;res()};o.onerror=()=>rej(o.error);
+})}
+const store=m=>db.transaction('r',m).objectStore('r');
 const req=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-const all=()=>req(store('readonly').getAll());
-const put=g=>req(store('readwrite').put(g));
-const rm=id=>req(store('readwrite').delete(id));
-
-let data=[],editing=null,newFile=null;
-
-function init(){
-  const opts=TIPOS.map(t=>`<option>${t}</option>`).join('');
-  $('tipo').innerHTML=opts;
-  $('fTipo').innerHTML='<option value="">Todos</option>'+opts;
-  $('fMes').value=new Date().toISOString().slice(0,7);
-  refresh();
+async function saveLocal(r){await req(store('readwrite').put({id:r.id,blob:await enc(r)}))}
+async function loadLocal(){
+  for(const row of await req(store('readonly').getAll())){try{data.set(row.id,await dec(row.blob))}catch{}}
 }
-open.onsuccess=()=>{db=open.result;init()};
+async function upsert(r){
+  r.updated=Date.now();data.set(r.id,r);await saveLocal(r);render();sync();
+}
+async function remove(r){
+  await upsert({id:r.id,kind:r.kind,deleted:true});
+}
 
-function filtered(){
+// Migra datos de la versión sin cifrar
+async function migrate(){
+  const old=await new Promise(res=>{const o=indexedDB.open('gastos');o.onsuccess=()=>res(o.result);o.onerror=()=>res(null)});
+  if(!old)return;
+  if(old.objectStoreNames.contains('g')){
+    const rows=await req(old.transaction('g').objectStore('g').getAll());
+    for(const g of rows){
+      const file=g.file?await fileToObj(g.file):null;
+      const r={...g,id:crypto.randomUUID(),kind:'g',file};
+      r.updated=Date.now();data.set(r.id,r);await saveLocal(r);
+    }
+  }
+  old.close();indexedDB.deleteDatabase('gastos');
+}
+
+// ---------- Gist ----------
+async function gh(path,opt={}){
+  const r=await fetch('https://api.github.com'+path,{...opt,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'}});
+  if(!r.ok)throw new Error('GitHub '+r.status+(r.status===401?' (token no válido)':r.status===404?' (gist no encontrado)':''));
+  return r.json();
+}
+async function gistFiles(tok,id){
+  const prev=token;token=tok;
+  try{
+    const g=await gh('/gists/'+id),out={};
+    for(const [n,f] of Object.entries(g.files))out[n]=f.truncated?await (await fetch(f.raw_url)).text():f.content;
+    return out;
+  }finally{token=prev}
+}
+let busy=false,again=false;
+const sst=t=>$('sst').textContent=t;
+async function sync(){
+  if(!key||!token)return;
+  if(busy){again=true;return}
+  busy=true;sst('Sincronizando…');
+  try{
+    const meta=JSON.stringify({salt:cfg.salt,check:cfg.check});
+    if(!cfg.gistId){
+      const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Gastos (cifrado)',public:false,files:{'meta.json':{content:meta}}})});
+      cfg.gistId=g.id;saveCfg();
+    }
+    const remote=await gistFiles(token,cfg.gistId);
+    if(remote['meta.json']&&JSON.parse(remote['meta.json']).salt!==cfg.salt)throw new Error('El gist usa otra contraseña');
+    const rmap={};
+    for(const [n,c] of Object.entries(remote))if(n.startsWith('r-')){try{rmap[n]=await dec(c)}catch{}}
+    let changed=false;
+    for(const r of Object.values(rmap)){
+      const l=data.get(r.id);
+      if(!l||l.updated<r.updated){data.set(r.id,r);await saveLocal(r);changed=true}
+    }
+    const push={};
+    for(const l of data.values()){
+      const n='r-'+l.id+'.txt',r=rmap[n];
+      if(!r||r.updated<l.updated)push[n]={content:await enc(l)};
+    }
+    if(!remote['meta.json'])push['meta.json']={content:meta};
+    if(Object.keys(push).length)await gh('/gists/'+cfg.gistId,{method:'PATCH',body:JSON.stringify({files:push})});
+    if(changed)render();
+    sst('Sincronizado '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){sst('Error: '+e.message)}
+  finally{busy=false;if(again){again=false;sync()}}
+}
+
+// ---------- Desbloqueo ----------
+async function start(){
+  cfg=JSON.parse(localStorage.getItem('gastosCfg')||'null');
+  $('uGistBox').style.display=cfg?'none':'';
+  const u=$('unlock');
+  u.addEventListener('cancel',e=>e.preventDefault());
+  u.showModal();
+}
+$('uPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('uGo').click()});
+$('uGo').onclick=async()=>{
+  const pass=$('uPass').value;if(!pass)return;
+  $('uErr').textContent='';$('uGo').disabled=true;
+  try{
+    if(cfg){
+      key=await derive(pass,cfg.salt);
+      try{if(await dec(cfg.check)!=='ok')throw 0}catch{key=null;throw new Error('Contraseña incorrecta')}
+      token=cfg.tok?await dec(cfg.tok):'';
+    }else{
+      const tok=$('uTok').value.trim(),gid=$('uGist').value.trim();
+      let salt,check;
+      if(gid){
+        if(!tok)throw new Error('Falta el token');
+        const f=await gistFiles(tok,gid);
+        if(!f['meta.json'])throw new Error('Ese gist no tiene datos de la app');
+        ({salt,check}=JSON.parse(f['meta.json']));
+        key=await derive(pass,salt);
+        try{if(await dec(check)!=='ok')throw 0}catch{key=null;throw new Error('Contraseña incorrecta para ese gist')}
+      }else{
+        salt=b64(crypto.getRandomValues(new Uint8Array(16)));
+        key=await derive(pass,salt);check=await enc('ok');
+      }
+      cfg={salt,check,gistId:gid,tok:tok?await enc(tok):''};
+      token=tok;saveCfg();
+    }
+    await openDb();await loadLocal();await migrate();
+    $('uPass').value='';$('unlock').close();
+    init();sync();
+  }catch(e){$('uErr').textContent=e.message}
+  finally{$('uGo').disabled=false}
+};
+$('bLock').onclick=()=>location.reload();
+$('bSync').onclick=()=>token?sync():$('bCfg').click();
+
+// ---------- Configuración del gist ----------
+$('bCfg').onclick=()=>{$('cTok').value='';$('cGist').value=cfg.gistId||'';$('cfgDlg').showModal()};
+$('cCancel').onclick=()=>$('cfgDlg').close();
+$('cSave').onclick=async()=>{
+  const t=$('cTok').value.trim();
+  if(t){token=t;cfg.tok=await enc(t)}
+  cfg.gistId=$('cGist').value.trim();
+  saveCfg();$('cfgDlg').close();sync();
+};
+$('cOff').onclick=()=>{token='';cfg.tok='';cfg.gistId='';saveCfg();sst('');$('cfgDlg').close()};
+
+// ---------- Vista ----------
+const live=k=>[...data.values()].filter(r=>!r.deleted&&r.kind===k);
+const sum=(l,f='cobrar')=>l.reduce((s,g)=>s+g[f],0);
+function gastos(){
   const m=$('fMes').value,t=$('fTipo').value,e=$('fEstado').value;
-  return data.filter(g=>(!m||g.date.startsWith(m))&&(!t||g.tipo===t)&&(!e||g.estado===e))
-    .sort((a,b)=>b.date.localeCompare(a.date));
+  return live('g').filter(g=>(!m||g.date.startsWith(m))&&(!t||g.tipo===t)&&(!e||g.estado===e)).sort((a,b)=>b.date.localeCompare(a.date));
 }
-const sum=l=>l.reduce((s,g)=>s+g.cobrar,0);
-
-function group(list,key){
-  const m={};list.forEach(g=>{const k=key(g);(m[k]??=[]).push(g)});return m;
+function ingresos(){
+  const m=$('fMes').value;
+  return live('i').filter(i=>!m||i.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date));
 }
+const group=(list,key)=>{const m={};list.forEach(g=>{(m[key(g)]??=[]).push(g)});return m};
 function groupHtml(m){
   const keys=Object.keys(m).sort();
   if(!keys.length)return '<p class="small">Sin datos</p>';
   return keys.map(k=>{const l=m[k],p=sum(l.filter(g=>g.estado==='pend'));
-    return `<div class="row" style="padding:4px 0"><span>${esc(k)}</span><span class="amt" style="text-align:right">${eur(sum(l))} <span class="small">(pend. ${eur(p)})</span></span></div>`}).join('');
+    return `<div class="row" style="padding:4px 0"><span>${esc(k)}</span><span class="amt">${eur(sum(l))} <span class="small">(pend. ${eur(p)})</span></span></div>`}).join('');
 }
-
-async function refresh(){
-  data=await all();
-  const l=filtered();
+async function fileBlob(f){return (await fetch(f.data)).blob()}
+async function showFile(g){
+  const u=URL.createObjectURL(await fileBlob(g.file));
+  $('viewBody').innerHTML=g.file.type.startsWith('image/')?`<img src="${u}" style="width:100%">`:`<a href="${u}" target="_blank">Abrir ${esc(g.file.name||'fichero')}</a>`;
+  $('view').showModal();
+}
+function render(){
+  const l=gastos(),li=ingresos();
+  const pend=sum(l.filter(g=>g.estado==='pend')),ing=sum(li,'amount');
   $('tTotal').textContent=eur(sum(l));
   $('tPaid').textContent=eur(sum(l.filter(g=>g.estado==='paid')));
-  $('tPend').textContent=eur(sum(l.filter(g=>g.estado==='pend')));
+  $('tPend').textContent=eur(pend);
+  $('tIng').textContent=eur(ing);
+  $('tSaldo').textContent=eur(pend-ing);
+  $('tGlobal').textContent=eur(sum(live('g').filter(g=>g.estado==='pend'))-sum(live('i'),'amount'));
   $('porTipo').innerHTML=groupHtml(group(l,g=>g.tipo));
-  // por mes: ignora el filtro de mes
   const t=$('fTipo').value,e=$('fEstado').value;
-  const base=data.filter(g=>(!t||g.tipo===t)&&(!e||g.estado===e));
-  $('porMes').innerHTML=groupHtml(group(base,g=>g.date.slice(0,7)));
+  $('porMes').innerHTML=groupHtml(group(live('g').filter(g=>(!t||g.tipo===t)&&(!e||g.estado===e)),g=>g.date.slice(0,7)));
   $('lista').innerHTML=l.length?'':'<p class="small">No hay gastos.</p>';
   l.forEach(g=>{
     const d=document.createElement('div');d.className='item';
-    const thumb=g.file?(g.file.type.startsWith('image/')?`<img alt="">`:`<div class="tag" style="cursor:pointer">PDF</div>`):'';
+    const thumb=g.file?(g.file.type.startsWith('image/')?'<img alt="">':'<div class="tag" style="cursor:pointer">PDF</div>'):'';
     d.innerHTML=`${thumb}<div class="info"><b>${esc(g.desc)}</b><br><span class="small">${g.date} · ${esc(g.tipo)}</span><br>
       <span class="tag ${g.estado}">${g.estado==='paid'?'Cobrado':'Pendiente'}</span>
       ${g.total!==g.cobrar?`<span class="small"> ticket ${eur(g.total)}</span>`:''}</div>
       <div class="amt">${eur(g.cobrar)}<br><button class="sec" style="margin-top:6px;padding:4px 8px">Editar</button></div>`;
-    const im=d.querySelector('img');
-    if(im)im.src=URL.createObjectURL(g.file);
+    const im=d.querySelector('img');if(im)im.src=g.file.data;
     (im||d.querySelector('.tag[style]'))?.addEventListener('click',()=>showFile(g));
     d.querySelector('button').onclick=()=>edit(g);
     $('lista').append(d);
   });
+  $('listaIng').innerHTML=li.length?'':'<p class="small">No hay ingresos.</p>';
+  li.forEach(i=>{
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<div class="info"><b>${esc(i.desc||'Ingreso')}</b><br><span class="small">${i.date}</span></div>
+      <div class="amt">${eur(i.amount)}<br><button class="sec" style="margin-top:6px;padding:4px 8px">Editar</button></div>`;
+    d.querySelector('button').onclick=()=>editI(i);
+    $('listaIng').append(d);
+  });
 }
-['fMes','fTipo','fEstado'].forEach(i=>$(i).onchange=refresh);
-
-function showFile(g){
-  const u=URL.createObjectURL(g.file);
-  $('viewBody').innerHTML=g.file.type.startsWith('image/')?`<img src="${u}" style="width:100%">`:`<a href="${u}" target="_blank">Abrir ${esc(g.file.name||'fichero')}</a>`;
-  $('view').showModal();
+function init(){
+  const opts=TIPOS.map(t=>`<option>${t}</option>`).join('');
+  $('tipo').innerHTML=opts;
+  $('fTipo').innerHTML='<option value="">Todos</option>'+opts;
+  $('fMes').value=today().slice(0,7);
+  render();
 }
+['fMes','fTipo','fEstado'].forEach(i=>$(i).onchange=render);
 
-// Formulario
+// ---------- Formulario de gasto ----------
+let editing=null,newFile=null;
 function edit(g){
   editing=g||null;newFile=null;
   $('dTitle').textContent=g?'Editar gasto':'Nuevo gasto';
-  $('date').value=g?g.date:new Date().toISOString().slice(0,10);
+  $('date').value=g?g.date:today();
   $('tipo').value=g?g.tipo:TIPOS[0];
   $('desc').value=g?g.desc:'';
   $('total').value=g?g.total:'';
@@ -208,17 +413,20 @@ $('total').oninput=()=>{if(!editing&&!$('cobrar').dataset.touched)$('cobrar').va
 $('cobrar').oninput=()=>$('cobrar').dataset.touched=1;
 $('dlg').addEventListener('close',()=>delete $('cobrar').dataset.touched);
 
+const readDataUrl=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
+async function fileToObj(f){return{name:f.name||'adjunto',type:f.type,data:await readDataUrl(f)}}
 async function shrink(f){
   if(!f.type.startsWith('image/'))return f;
-  const bmp=await createImageBitmap(f),s=Math.min(1,1600/Math.max(bmp.width,bmp.height));
+  const bmp=await createImageBitmap(f),s=Math.min(1,1280/Math.max(bmp.width,bmp.height));
   const c=document.createElement('canvas');c.width=bmp.width*s;c.height=bmp.height*s;
   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
-  const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.8));
+  const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.7));
   return new File([b],(f.name||'ticket').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'});
 }
 async function pick(e){
   const f=e.target.files[0];if(!f)return;
-  newFile=await shrink(f);$('prev').textContent='Adjunto: '+newFile.name;
+  if(f.size>5e6&&!f.type.startsWith('image/')){alert('El fichero es demasiado grande (máx. 5 MB).');e.target.value='';return}
+  newFile=await fileToObj(await shrink(f));$('prev').textContent='Adjunto: '+newFile.name;
 }
 $('cam').onchange=pick;$('file').onchange=pick;
 
@@ -226,30 +434,54 @@ $('form').onsubmit=async e=>{
   e.preventDefault();
   const total=+$('total').value,cobrar=+$('cobrar').value;
   if(cobrar>total){alert('El importe a cobrar no puede superar el total del ticket.');return}
-  const g={...(editing||{}),date:$('date').value,tipo:$('tipo').value,desc:$('desc').value.trim(),
+  const g={...(editing||{id:crypto.randomUUID(),kind:'g'}),date:$('date').value,tipo:$('tipo').value,desc:$('desc').value.trim(),
     total,cobrar,estado:$('estado').value,file:newFile||editing?.file||null};
-  await put(g);$('dlg').close();refresh();
+  $('dlg').close();await upsert(g);
 };
 $('dDel').onclick=async()=>{
-  if(editing&&confirm('¿Eliminar este gasto?')){await rm(editing.id);$('dlg').close();refresh()}
+  if(editing&&confirm('¿Eliminar este gasto?')){$('dlg').close();await remove(editing)}
 };
 
-// Informe
+// ---------- Formulario de ingreso ----------
+let editingI=null;
+function editI(i){
+  editingI=i||null;
+  $('iTitle').textContent=i?'Editar ingreso':'Nuevo ingreso';
+  $('idate').value=i?i.date:today();
+  $('iamt').value=i?i.amount:'';
+  $('idesc').value=i?i.desc:'';
+  $('iDel').style.display=i?'':'none';
+  $('idlg').showModal();
+}
+$('bNewI').onclick=()=>editI(null);
+$('iCancel').onclick=()=>$('idlg').close();
+$('iform').onsubmit=async e=>{
+  e.preventDefault();
+  const r={...(editingI||{id:crypto.randomUUID(),kind:'i'}),date:$('idate').value,amount:+$('iamt').value,desc:$('idesc').value.trim()};
+  $('idlg').close();await upsert(r);
+};
+$('iDel').onclick=async()=>{
+  if(editingI&&confirm('¿Eliminar este ingreso?')){$('idlg').close();await remove(editingI)}
+};
+
+// ---------- Informe ----------
 function reportText(){
-  const l=filtered().sort((a,b)=>a.date.localeCompare(b.date));
+  const l=gastos().sort((a,b)=>a.date.localeCompare(b.date)),li=ingresos().sort((a,b)=>a.date.localeCompare(b.date));
   const m=$('fMes').value;
   let t=`Gastos pendientes de cobro${m?' - '+m:''}\n\n`;
   l.forEach(g=>t+=`${g.date} | ${g.tipo} | ${g.desc} | ${eur(g.cobrar)}${g.total!==g.cobrar?' (ticket '+eur(g.total)+')':''} | ${g.estado==='paid'?'COBRADO':'PENDIENTE'}\n`);
-  t+=`\nTotal: ${eur(sum(l))}\nCobrado: ${eur(sum(l.filter(g=>g.estado==='paid')))}\nPendiente: ${eur(sum(l.filter(g=>g.estado==='pend')))}\n`;
+  if(li.length){t+='\nIngresos recibidos:\n';li.forEach(i=>t+=`${i.date} | ${i.desc||'Ingreso'} | ${eur(i.amount)}\n`)}
+  const pend=sum(l.filter(g=>g.estado==='pend')),ing=sum(li,'amount');
+  t+=`\nTotal a cobrar: ${eur(sum(l))}\nMarcado cobrado: ${eur(sum(l.filter(g=>g.estado==='paid')))}\nPendiente: ${eur(pend)}\nIngresos: ${eur(ing)}\nSALDO PENDIENTE: ${eur(pend-ing)}\n`;
   const byT=group(l,g=>g.tipo);
   t+='\nPor tipo:\n'+Object.keys(byT).sort().map(k=>`- ${k}: ${eur(sum(byT[k]))}`).join('\n');
   return t;
 }
 $('bShare').onclick=async()=>{
-  const files=filtered().map(g=>g.file).filter(Boolean);
+  const files=await Promise.all(gastos().filter(g=>g.file).map(async g=>new File([await fileBlob(g.file)],g.file.name,{type:g.file.type})));
   const text=reportText();
   try{
-    if(navigator.canShare?.({files})&&files.length)await navigator.share({title:'Informe de gastos',text,files});
+    if(files.length&&navigator.canShare?.({files}))await navigator.share({title:'Informe de gastos',text,files});
     else if(navigator.share)await navigator.share({title:'Informe de gastos',text});
     else alert('Tu navegador no permite compartir directamente. Usa WhatsApp, Email o Imprimir.');
   }catch(e){if(e.name!=='AbortError')alert(e.message)}
@@ -261,29 +493,31 @@ function download(name,blob){const a=document.createElement('a');a.href=URL.crea
 $('bCsv').onclick=()=>{
   const q=s=>`"${String(s).replace(/"/g,'""')}"`;
   const rows=[['Fecha','Tipo','Descripcion','Total ticket','A cobrar','Estado'],
-    ...filtered().map(g=>[g.date,g.tipo,g.desc,g.total,g.cobrar,g.estado==='paid'?'Cobrado':'Pendiente'])];
+    ...gastos().map(g=>[g.date,g.tipo,g.desc,g.total,g.cobrar,g.estado==='paid'?'Cobrado':'Pendiente']),
+    ...ingresos().map(i=>[i.date,'Ingreso',i.desc,'',-i.amount,'Ingreso'])];
   download('gastos.csv',new Blob(['\ufeff'+rows.map(r=>r.map(q).join(';')).join('\n')],{type:'text/csv'}));
 };
 
-// Copia de seguridad
-const b2d=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
+// ---------- Copia de seguridad (cifrada) ----------
 $('bExport').onclick=async()=>{
-  const out=[];for(const g of await all())out.push({...g,file:g.file?{name:g.file.name,type:g.file.type,data:await b2d(g.file)}:null});
-  download('gastos-copia.json',new Blob([JSON.stringify(out)],{type:'application/json'}));
+  const rows=await req(store('readonly').getAll());
+  download('gastos-copia.json',new Blob([JSON.stringify({salt:cfg.salt,rows:rows.map(r=>r.blob)})],{type:'application/json'}));
 };
 $('bImport').onclick=()=>$('fImport').click();
 $('fImport').onchange=async e=>{
   try{
-    const list=JSON.parse(await e.target.files[0].text());
-    for(const g of list){
-      delete g.id;
-      if(g.file)g.file=new File([await (await fetch(g.file.data)).blob()],g.file.name,{type:g.file.type});
-      await put(g);
+    const b=JSON.parse(await e.target.files[0].text());
+    if(b.salt!==cfg.salt)throw new Error('Copia de otra contraseña');
+    for(const s of b.rows){
+      const r=await dec(s),l=data.get(r.id);
+      if(!l||l.updated<r.updated){data.set(r.id,r);await saveLocal(r)}
     }
-    refresh();alert('Importado');
-  }catch(err){alert('Archivo no válido')}
+    render();sync();alert('Importado');
+  }catch(err){alert(err.message||'Archivo no válido')}
   e.target.value='';
 };
+
+start();
 </script>
 </body>
 </html>
