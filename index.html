@@ -452,9 +452,9 @@ function isGreenHighlighted(ctx,box,width,height){
   let green=0;
   for(let i=0;i<pixels.length;i+=4){
     const [red,g,blue]=pixels.slice(i,i+3);
-    if(g>85&&g-red>18&&g-blue>15&&g>red*1.12&&g>blue*1.12)green++;
+    if(g>75&&g-red>8&&g-blue>10&&g>red*1.03&&g>blue*1.08)green++;
   }
-  return green>=8&&green/(pixels.length/4)>=.06;
+  return green>=4&&green/(pixels.length/4)>=.025;
 }
 async function highlightedAmounts(file,words){
   const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');
@@ -464,6 +464,27 @@ async function highlightedAmounts(file,words){
   return words.map(word=>({value:moneyFromWord(word.text),box:word.bbox}))
     .filter(item=>item.value!==null&&item.box&&isGreenHighlighted(ctx,item.box,canvas.width,canvas.height))
     .sort((a,b)=>a.box.y0-b.box.y0);
+}
+function receiptTotal(result,lines){
+  const words=result.words||[];
+  const amounts=words.map(word=>({value:moneyFromWord(word.text),box:word.bbox}))
+    .filter(item=>item.value!==null&&item.box);
+  const labels=words.filter(word=>/^(?:total|tota1|totai|t0tal)$/i.test(word.text.replace(/[^a-z0-9]/gi,''))&&word.bbox);
+  for(const label of labels){
+    const height=label.bbox.y1-label.bbox.y0;
+    const sameRow=amounts.filter(item=>{
+      const center=(item.box.y0+item.box.y1)/2,labelCenter=(label.bbox.y0+label.bbox.y1)/2;
+      return item.box.x0>label.bbox.x0&&Math.abs(center-labelCenter)<=Math.max(12,height*1.8);
+    }).sort((a,b)=>b.box.x1-a.box.x1);
+    if(sameRow.length)return sameRow[0].value;
+  }
+  const totalIndex=lines.findIndex(line=>/total|a\s*pagar|importe\s*total/i.test(line));
+  if(totalIndex<0)return null;
+  for(const line of lines.slice(totalIndex,totalIndex+3)){
+    const values=moneyValues(line);
+    if(values.length)return values[0];
+  }
+  return null;
 }
 async function readTicket(file){
   if(!file.type.startsWith('image/'))return;
@@ -476,17 +497,16 @@ async function readTicket(file){
     finally{await worker.terminate()}
     const text=result.text||'';
     const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
-    const totalLine=lines.filter(line=>/total|a\s*pagar|importe\s*total/i.test(line)).at(-1);
-    const totals=totalLine?moneyValues(totalLine):[];
+    const total=receiptTotal(result,lines);
     const marked=await highlightedAmounts(file,result.words||[]);
     const markedTotal=marked.reduce((sum,item)=>sum+item.value,0);
-    if(totals.length)$('total').value=totals.at(-1).toFixed(2);
+    if(total!==null)$('total').value=total.toFixed(2);
     if(marked.length){
       $('cobrar').value=markedTotal.toFixed(2);
       $('cobrar').dataset.touched=1;
     }
-    const totalText=totals.length
-      ?`Total sugerido: <span class="ocr-total">${eur(totals.at(-1))}</span>`
+    const totalText=total!==null
+      ?`Total sugerido: <span class="ocr-total">${eur(total)}</span>`
       :'No se detectó el total del ticket';
     const markedText=marked.map(item=>`<span class="ocr-amount">${eur(item.value)}</span>`).join(' + ');
     const selectedText=marked.length
